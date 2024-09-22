@@ -16,7 +16,8 @@ import React, {
     const [userAuthenticated, setUserAuthenticated] = useState<boolean>(!!localStorage.getItem("mutaengine-access-token"));
   
     const signInUser = (authData: IAuthResponse) => {
-      localStorage.setItem("mutaengine-access-token", authData.token);
+      localStorage.setItem("mutaengine-access-token", authData.access);
+      localStorage.setItem("mutaengine-refresh-token", authData.refresh);
       setUserAuthenticated(true);
       // You can also store user details if needed
       localStorage.setItem("mutaengine-user-data", JSON.stringify(authData.user));
@@ -24,6 +25,7 @@ import React, {
     
     const signOutUser = () => {
       localStorage.removeItem("mutaengine-access-token");
+      localStorage.removeItem("mutaengine-refresh-token");
       localStorage.removeItem("mutaengine-user-data");
       setUserAuthenticated(false);
     };

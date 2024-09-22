@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-    baseURL: 'https://api.store.tejasvaij.com', // replace with your API URL
+    baseURL: import.meta.env.VITE_API_BASE_URL, // replace with your API URL
 });
 
 // Request Interceptor to add the token
@@ -23,7 +23,7 @@ axiosInstance.interceptors.request.use(
 const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem('mutaengine-refresh-token');
     try {
-        const response = await axios.post('https://api.store.tejasvaij.com/auth/refresh/', { refresh: refreshToken });
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/refresh/`, { refresh: refreshToken });
         const { access } = response.data;
         localStorage.setItem('mutaengine-access-token', access);
         return access; // Return the new access token

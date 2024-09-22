@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 import ReCAPTCHA from "react-google-recaptcha";
 import axios from "../api/axios";
+import { Context } from "../context/context";
+import { useNavigate } from "react-router-dom";
 
 interface SignupProps {
   onSwitch: () => void;
@@ -11,7 +14,9 @@ interface SigninProps {
 }
 
 const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
-  const [email, setEmail] = useState<string>("");
+  const { signInUser } = Context();
+
+  const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -28,19 +33,44 @@ const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
 
     try {
       const response = await axios.post("/signup/", {
-        email,
+        username,
         password,
         "g-recaptcha-response": recaptchaToken,
       });
 
       // Handle successful signup (e.g., store tokens, redirect, etc.)
       console.log("Signup successful:", response.data);
+      signInUser(response.data);
     } catch (err) {
       setError("Signup failed. Please try again.");
       console.error("Signup error:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    console.log(credentialResponse);
+    console.log("Hello World!");
+
+    // Use the credentialResponse to make a backend call
+    try {
+      const response = await axios.post("/google-complete/",
+        {
+          token: credentialResponse.credential,
+        }
+      );
+
+      console.log(response.data);
+      signInUser(response.data);
+
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+    }
+  };
+
+  const handleGoogleFailure = () => {
+    console.log("Google Sign-In was unsuccessful. Try again later.");
   };
 
   return (
@@ -71,8 +101,8 @@ const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
                 type="email"
                 autoComplete="email"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
               />
             </div>
@@ -98,7 +128,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
             </div>
           </div>
           <ReCAPTCHA
-            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+            sitekey={"6LfsUUsqAAAAAIE7Iyk4PCHXIs2QZ_H63mZPb1Us"}
             onChange={handleRecaptchaChange}
           />
           {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -112,6 +142,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
             </button>
           </div>
         </form>
+        <div className="text-center p-2">or</div>
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleFailure}
+          useOneTap
+        />
         <p className="mt-10 text-center text-sm text-gray-500">
           Already a member?{" "}
           <button
@@ -127,6 +163,56 @@ const Signup: React.FC<SignupProps> = ({ onSwitch }) => {
 };
 
 const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
+  const { signInUser } = Context();
+  const navigate = useNavigate()
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // Prevent page reload
+
+    try {
+      const response = await axios.post("/auth/", {
+        username: email,
+        password: password,
+      });
+
+      console.log("Signin Successful:", response.data);
+      signInUser(response.data);
+
+      // Redirect or update UI on successful sign-in
+    } catch (err) {
+      setError("Invalid credentials. Please try again.");
+      console.error(err);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    console.log(credentialResponse);
+    console.log("Hello World!");
+
+    // Use the credentialResponse to make a backend call
+    try {
+      const response = await axios.post("/google-complete/",
+        {
+          token: credentialResponse.credential,
+        }
+      );
+
+      console.log(response.data);
+        signInUser(response.data);
+
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+    }
+  };
+
+  const handleGoogleFailure = () => {
+    console.log("Google Sign-In was unsuccessful. Try again later.");
+  };
+
   return (
     <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-sm">
@@ -140,7 +226,7 @@ const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
         </h2>
       </div>
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        <form className="space-y-6" action="#" method="POST">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label
               htmlFor="email"
@@ -154,7 +240,9 @@ const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
                 name="email"
                 type="email"
                 autoComplete="email"
-                required={true}
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
               />
             </div>
@@ -168,12 +256,14 @@ const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
                 Password
               </label>
               <div className="text-sm">
-                <a
-                  href="#"
+                <button
+                  onClick={()=>{
+                    navigate('/forgot-password')
+                  }}
                   className="font-semibold text-indigo-600 hover:text-indigo-500"
                 >
                   Forgot password?
-                </a>
+                </button>
               </div>
             </div>
             <div className="mt-2">
@@ -182,20 +272,29 @@ const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
                 name="password"
                 type="password"
                 autoComplete="current-password"
-                required={true}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
               />
             </div>
           </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           <div>
             <button
-              type="submit"
+              type="submit" // Ensure this is set to "submit"
               className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               Sign in
             </button>
           </div>
         </form>
+        <div className="text-center p-2">or</div>
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleFailure}
+          useOneTap
+        />
         <p className="mt-10 text-center text-sm text-gray-500">
           Not a member?{" "}
           <button
@@ -211,7 +310,7 @@ const Signin: React.FC<SigninProps> = ({ onSwitch }) => {
 };
 
 export const Authentication = () => {
-  const [isSignup, setIsSignup] = useState(true);
+  const [isSignup, setIsSignup] = useState(false);
 
   const handleSwitch = () => {
     setIsSignup((prev) => !prev);
